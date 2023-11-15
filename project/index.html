@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Object Classification</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+</head>
+<body>
+    <h1>Webcam Object Classification</h1>
+    <video id="webcam" width="640" height="480" autoplay></video>
+    <canvas id="output" width="640" height="480"></canvas>
+
+    <script>
+        async function setupWebcam() {
+            return new Promise((resolve, reject) => {
+                const webcam = document.getElementById('webcam');
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then((stream) => {
+                        webcam.srcObject = stream;
+                        webcam.addEventListener('loadeddata', () => resolve(), false);
+                    })
+                    .catch((error) => reject(error));
+            });
+        }
+
+        async function loadMobilenet() {
+            const mobilenet = await tf.loadLayersModel('https://tfhub.dev/google/tfjs-model/mobilenet_v2/classification/4/default/1');
+            return mobilenet;
+        }
+
+        async function classifyFrame(net) {
+            const webcam = document.getElementById('webcam');
+            const outputCanvas = document.getElementById('output');
+            const ctx = outputCanvas.getContext('2d');
+
+            while (true) {
+                const img = tf.browser.fromPixels(webcam);
+                const resized = tf.image.resizeBilinear(img, [224, 224]);
+                const expanded = resized.expandDims(0);
+                const preprocessed = expanded.toFloat().div(tf.scalar(127)).sub(tf.scalar(1));
+                
+                const predictions = await net.predict(preprocessed).data();
+                const maxPrediction = Math.max(...predictions);
+                const predictedClass = predictions.indexOf(maxPrediction);
+
+                ctx.clearRect(0, 0, 640, 480);
+                ctx.font = '16px Arial';
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(`Class: ${predictedClass}, Confidence: ${(maxPrediction * 100).toFixed(2)}%`, 10, 20);
+
+                tf.dispose(img);
+                tf.dispose(resized);
+                tf.dispose(expanded);
+                tf.dispose(preprocessed);
+
+                await tf.nextFrame();
+            }
+        }
+
+        async function run() {
+            await setupWebcam();
+            const net = await loadMobilenet();
+            classifyFrame(net);
+        }
+
+        run();
+    </script>
+</body>
+</html>
