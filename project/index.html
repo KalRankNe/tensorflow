@@ -11,6 +11,7 @@
     <h1>Webcam Object Classification</h1>
     <video id="webcam" width="640" height="480" autoplay></video>
     <canvas id="output" width="640" height="480"></canvas>
+    <p id="result"></p>
 
     <script>
         async function setupWebcam() {
@@ -33,6 +34,7 @@
         async function classifyFrame(net) {
             const webcam = document.getElementById('webcam');
             const outputCanvas = document.getElementById('output');
+            const resultElement = document.getElementById('result');
             const ctx = outputCanvas.getContext('2d');
 
             while (true) {
@@ -44,6 +46,8 @@
                 const predictions = await net.predict(preprocessed).data();
                 const maxPrediction = Math.max(...predictions);
                 const predictedClass = predictions.indexOf(maxPrediction);
+
+                resultElement.innerText = `Class: ${predictedClass}, Confidence: ${(maxPrediction * 100).toFixed(2)}%`;
 
                 ctx.clearRect(0, 0, 640, 480);
                 ctx.font = '16px Arial';
